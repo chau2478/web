@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">
+    <rect width="400" height="600" fill="#234c3d"/>
+    <rect x="18" y="18" width="364" height="564" rx="4" fill="none" stroke="#e8d9a7" stroke-width="2" opacity=".9"/>
+    <rect x="30" y="30" width="10" height="540" fill="#e8d9a7" opacity=".8"/>
+    <path d="M0 510 Q100 440 200 510 T400 500 V600 H0Z" fill="#72915b"/><path d="M0 545 Q120 480 250 550 T400 530 V600 H0Z" fill="#9eb26c"/><circle cx="300" cy="355" r="62" fill="#e8d9a7" opacity=".9"/><path d="M195 520 Q205 440 250 425 Q280 440 280 520Z" fill="#d7b879"/>
+    <text x="62" y="95" font-family="Georgia,serif" font-size="34" font-weight="bold" fill="#e8d9a7">DẾ MÈN</text>
+    <text x="62" y="132" font-family="Arial,sans-serif" font-size="18" fill="#ffffff">PHIÊU LƯU KÝ</text>
+    <line x1="62" y1="155" x2="338" y2="155" stroke="#e8d9a7" stroke-width="2" opacity=".8"/>
+    <text x="62" y="535" font-family="Arial,sans-serif" font-size="18" letter-spacing="1.5" fill="#ffffff">TÔ HOÀI</text>
+    <text x="62" y="558" font-family="Arial,sans-serif" font-size="10" letter-spacing="2" fill="#e8d9a7">THƯ VIỆN TRỰC TUYẾN</text>
+    </svg>

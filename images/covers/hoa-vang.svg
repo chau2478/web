@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">
+    <rect width="400" height="600" fill="#42784b"/>
+    <rect x="18" y="18" width="364" height="564" rx="4" fill="none" stroke="#f5d45d" stroke-width="2" opacity=".9"/>
+    <rect x="30" y="30" width="10" height="540" fill="#f5d45d" opacity=".8"/>
+    <path d="M0 470 Q120 430 230 500 T400 460 V600 H0Z" fill="#2d5d3c"/><g fill="#f4d66b"><circle cx="85" cy="390" r="22"/><circle cx="65" cy="370" r="17"/><circle cx="105" cy="370" r="17"/><circle cx="65" cy="410" r="17"/><circle cx="105" cy="410" r="17"/></g><g fill="#fff1c8"><circle cx="300" cy="430" r="20"/><circle cx="280" cy="410" r="16"/><circle cx="320" cy="410" r="16"/><circle cx="280" cy="450" r="16"/><circle cx="320" cy="450" r="16"/></g>
+    <text x="62" y="95" font-family="Georgia,serif" font-size="28" font-weight="bold" fill="#f5d45d">TÔI THẤY HOA VÀNG</text>
+    <text x="62" y="132" font-family="Arial,sans-serif" font-size="18" fill="#ffffff">TRÊN CỎ XANH</text>
+    <line x1="62" y1="155" x2="338" y2="155" stroke="#f5d45d" stroke-width="2" opacity=".8"/>
+    <text x="62" y="535" font-family="Arial,sans-serif" font-size="18" letter-spacing="1.5" fill="#ffffff">NGUYỄN NHẬT ÁNH</text>
+    <text x="62" y="558" font-family="Arial,sans-serif" font-size="10" letter-spacing="2" fill="#f5d45d">THƯ VIỆN TRỰC TUYẾN</text>
+    </svg>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mượn / trả | Thư viện trực tuyến</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="school-mark" href="index.html" aria-label="Trang chủ thư viện"
+        ><span>📚</span><small>TRI THỨC</small></a
+      >
+      <h1>THƯ VIỆN</h1>
+      <nav class="navbar">
+        <a class="" href="index.html">Trang chủ</a
+        ><a class="" href="gioi-thieu.html">Giới thiệu</a
+        ><a class="" href="book.html">Tra cứu sách</a
+        ><a class="active" href="loan.html">Mượn / trả</a
+        ><a class="" href="chinh-sach.html">Chính sách</a>
+        <div class="account-area" id="accountArea">
+          <a href="login.html">Đăng nhập</a>
+        </div>
+      </nav>
+    </header>
+    <section class="banner">
+      <img src="images/library-hero.jpg" alt="Không gian sách và tri thức" /><a
+        class="banner-cta-link"
+        href="book.html"
+        aria-label="Khám phá sách, đến trang tra cứu sách"
+      ></a>
+    </section>
+    <main class="container">
+      <h1>Quản lý mượn / trả sách</h1>
+      <p class="hint">
+        Thời hạn mượn mặc định là 14 ngày. Cậu có thể theo dõi và trả sách tại
+        đây.
+      </p>
+      <div id="loanMessage" class="form-box loan-message-card">
+        Vui lòng <a href="login.html">đăng nhập</a> để xem thông tin mượn trả.
+      </div>
+      <div id="loanList" class="table-wrap"></div>
+    </main>
+    <footer class="site-footer">
+      <div class="footer-contact">
+        <h3>THƯ VIỆN TRỰC TUYẾN</h3>
+        <p>Địa chỉ: 33/15A Ven Sông Sáng, Chánh Hưng, Hồ Chí Minh</p>
+        <p>Điện thoại: 0705031225</p>
+        <p>Email: baochau291220012@gmail.com</p>
+      </div>
+    </footer>
+    <script src="app.js"></script>
+  </body>
+</html>

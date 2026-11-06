@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tra cứu sách | Thư viện trực tuyến</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="school-mark" href="index.html" aria-label="Trang chủ thư viện"
+        ><span>📚</span><small>TRI THỨC</small></a
+      >
+      <h1>THƯ VIỆN</h1>
+      <nav class="navbar">
+        <a class="" href="index.html">Trang chủ</a
+        ><a class="" href="gioi-thieu.html">Giới thiệu</a
+        ><a class="active" href="book.html">Tra cứu sách</a
+        ><a class="" href="loan.html">Mượn / trả</a
+        ><a class="" href="chinh-sach.html">Chính sách</a>
+        <div class="account-area" id="accountArea">
+          <a href="login.html">Đăng nhập</a>
+        </div>
+      </nav>
+    </header>
+    <section class="banner">
+      <img src="images/library-hero.jpg" alt="Không gian sách và tri thức" /><a
+        class="banner-cta-link"
+        href="book.html"
+        aria-label="Khám phá sách, đến trang tra cứu sách"
+      ></a>
+    </section>
+    <main class="container">
+      <h1>Tra cứu và quản lý sách</h1>
+      <p class="hint">
+        Tìm sách theo tên, tác giả hoặc thể loại. Chọn một cuốn để xem thông tin
+        chi tiết.
+      </p>
+      <form id="searchForm" class="form-box search-form-box">
+        <div class="search-keyword">
+          <label for="keyword">Tên sách hoặc từ khóa</label
+          ><input
+            type="text"
+            id="keyword"
+            placeholder="Tên sách, tác giả hoặc thể loại"
+          />
+        </div>
+        <div class="book-filter-panel">
+          <label class="filter-field"
+            ><span>DANH MỤC SÁCH</span
+            ><select id="categoryFilter">
+              <option value="">Tất cả danh mục</option>
+            </select></label
+          ><label class="filter-field"
+            ><span>TÁC GIẢ</span
+            ><select id="authorFilter">
+              <option value="">Tất cả tác giả</option>
+            </select></label
+          ><button type="button" id="clearButton" class="filter-clear">
+            Xóa bộ lọc
+          </button>
+        </div>
+        <div class="actions search-actions">
+          <button type="submit">Tìm kiếm</button>
+        </div>
+      </form>
+      <section id="adminArea" class="form-box hidden">
+        <h2 id="formTitle">Thêm sách</h2>
+        <form id="bookForm">
+          <input type="hidden" id="bookId" /><label
+            >Tên sách<input id="title" required /></label
+          ><label>Tác giả<input id="author" required /></label
+          ><label>Thể loại<input id="category" required /></label
+          ><label>Năm xuất bản<input type="number" id="year" /></label
+          ><label
+            >Số lượng<input type="number" id="quantity" min="0" required
+          /></label>
+          <div class="actions">
+            <button type="submit">Lưu sách</button
+            ><button type="button" id="cancelButton" class="secondary">
+              Hủy
+            </button>
+          </div>
+        </form>
+      </section>
+      <div class="section-heading">
+        <h2>Danh sách sách</h2>
+        <button id="addButton" class="hidden">+ Thêm sách</button>
+      </div>
+      <div id="bookResults" class="book-list"></div>
+    </main>
+    <footer class="site-footer">
+      <div class="footer-contact">
+        <h3>THƯ VIỆN TRỰC TUYẾN</h3>
+        <p>Địa chỉ: 33/15A Ven Sông Sáng, Chánh Hưng, Hồ Chí Minh</p>
+        <p>Điện thoại: 0705031225</p>
+        <p>Email: baochau291220012@gmail.com</p>
+      </div>
+    </footer>
+    <script src="app.js"></script>
+  </body>
+</html>

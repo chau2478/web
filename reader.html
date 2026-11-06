@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản lý độc giả</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <header class="site-header">
+      <a class="school-mark" href="index.html" aria-label="Trang chủ thư viện"
+        ><span>📚</span><small>TRI THỨC</small></a
+      >
+      <h1>THƯ VIỆN TRỰC TUYẾN</h1>
+      <a class="header-login" href="login.html">♟ Đăng nhập</a>
+      <nav class="navbar">
+        <a href="index.html">Trang chủ</a
+        ><a href="gioi-thieu.html">Giới thiệu</a
+        ><a href="book.html">Tra cứu sách</a
+        ><a href="loan.html">Mượn / trả sách</a
+        ><a href="chinh-sach.html">Chính sách</a
+        ><a href="login.html">Đăng nhập</a>
+      </nav>
+    </header>
+
+    <section class="banner" id="trang-chu">
+      <img src="images/library-hero.jpg" alt="Banner sách và tri thức" />
+    </section>
+
+    <main class="container">
+      <h1>Quản lý độc giả</h1>
+
+      <div id="readerAdmin" class="hidden">
+        <div class="form-box">
+          <h2>Thêm độc giả</h2>
+
+          <form id="readerForm">
+            <label>
+              Họ tên
+              <input type="text" id="readerName" required />
+            </label>
+
+            <label>
+              Email
+              <input type="email" id="readerEmail" />
+            </label>
+
+            <label>
+              Số điện thoại
+              <input type="tel" id="readerPhone" />
+            </label>
+
+            <button type="submit">Thêm độc giả</button>
+          </form>
+        </div>
+
+        <input type="text" id="readerSearch" placeholder="Tìm độc giả..." />
+
+        <div id="readerList" class="table-wrap"></div>
+      </div>
+
+      <div id="readerMessage" class="form-box">
+        Vui lòng đăng nhập bằng tài khoản quản trị viên để quản lý độc giả.
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-contact">
+        <h3>THƯ VIỆN ĐẠI HỌC Y HÀ NỘI</h3>
+        <p>Địa chỉ: 01 Tôn Thất Tùng - Đống Đa - Hà Nội</p>
+        <p>Điện thoại: +84 4 38523798</p>
+        <p>Email: thuvieny@hmu.edu.vn</p>
+        <strong>Bản quyền thuộc về Trường Đại học Y Hà Nội</strong>
+      </div>
+      <div class="footer-stats">
+        <h3>Thống kê truy cập website</h3>
+        <div class="footer-stat-row"><span>♟ Hôm nay</span><b>157872</b></div>
+        <div class="footer-stat-row">
+          <span>♟ Trong tháng</span><b>157872</b>
+        </div>
+        <div class="footer-stat-row"><span>♟ Online</span><b>87050</b></div>
+        <div class="footer-stat-row">
+          <span>▥ Lượt truy cập thử</span><b>395708620</b>
+        </div>
+      </div>
+    </footer>
+
+    <script src="app.js"></script>
+    <script src="reader.js"></script>
+  </body>
+</html>
