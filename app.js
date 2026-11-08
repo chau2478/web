@@ -440,20 +440,11 @@ function escapeHTML(v) {
       ],
   );
 }
-// Ưu tiên bìa trực tuyến đã lưu; nếu chưa có thì dùng bìa dự phòng có sẵn trong dự án.
+// Không phụ thuộc ảnh bìa lưu trong repository: dùng placeholder SVG nhúng trực tiếp.
 function fallbackCoverForBook(book) {
-  const title = normalizeBookText(book?.title || "");
-  const localCovers = [
-    ["de men phieu luu ky", "images/covers/de-men.svg"],
-    ["toi thay hoa vang tren co xanh", "images/covers/hoa-vang.svg"],
-    ["lao hac", "images/covers/hoa-vang.svg"],
-    ["vo nhat", "images/covers/hoa-vang.svg"],
-    ["nha gia kim", "images/covers/nha-gia-kim.svg"],
-    ["dac nhan tam", "images/covers/dac-nhan-tam.svg"],
-    ["clean code", "images/covers/clean-code.svg"]
-  ];
-  const found = localCovers.find(([name]) => title.includes(name) || name.includes(title));
-  return found ? found[1] : "images/cover-loading.svg";
+  const title = escapeHTML(book?.title || "Chưa có ảnh bìa");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="420" height="600" viewBox="0 0 420 600"><rect width="420" height="600" rx="24" fill="#ffe6f0"/><rect x="34" y="34" width="352" height="532" rx="18" fill="#fff8fb" stroke="#e9a9c5" stroke-width="5"/><text x="210" y="230" text-anchor="middle" font-size="92">📚</text><text x="210" y="315" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="#a92566">THƯ VIỆN</text><foreignObject x="65" y="350" width="290" height="120"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,sans-serif;font-size:20px;text-align:center;color:#80566b;overflow-wrap:anywhere;">${title}</div></foreignObject></svg>`;
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
 }
 function coverForBook(book) {
   return book.coverUrl || fallbackCoverForBook(book);
@@ -468,8 +459,8 @@ function normalizeBookText(value) {
     .replace(/\s+/g, " ")
     .trim();
 }
-// Tra cứu metadata từ Open Library, dự phòng Internet Archive.
-// Kết quả được lưu vào localStorage để không gọi API lặp lại ở mỗi lần tải trang.
+// Tra cứu lần lượt Open Library, Google Books và Internet Archive.
+// Lưu cache để hạn chế số lần gọi API; không phụ thuộc ảnh nằm trong repository.
 const bookMetadataJobs = new Map();
 async function findOnlineBookMetadata(title, author) {
   const cacheKey = "bookMetadata:" + normalizeBookText(title + " " + author);
@@ -477,46 +468,89 @@ async function findOnlineBookMetadata(title, author) {
   if (cached) {
     try {
       const parsed = JSON.parse(cached);
-      // Không giữ kết quả không tìm thấy vĩnh viễn; thử tra cứu lại ở lần sau.
       if (!parsed?.notFound) return parsed;
       localStorage.removeItem(cacheKey);
     } catch (_) { localStorage.removeItem(cacheKey); }
   }
   if (bookMetadataJobs.has(cacheKey)) return bookMetadataJobs.get(cacheKey);
   const job = (async () => {
-    let match = null;
-    try {
-      const response = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(title + " " + author)}&limit=12`);
-      if (response.ok) {
-        const data = await response.json();
-        const docs = (data.docs || []).map(doc => ({source:"Open Library",externalId:doc.key||"",info:{title:doc.title,authors:doc.author_name||[],publishedDate:doc.first_publish_year?String(doc.first_publish_year):"",publisher:(doc.publisher||[])[0]||"",description:doc.first_sentence||"",pageCount:doc.number_of_pages_median||"",imageLinks:doc.cover_i?{thumbnail:`https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`}:{},industryIdentifiers:(doc.isbn||[]).map(isbn=>({type:isbn.length===13?"ISBN_13":"ISBN_10",identifier:isbn}))}}));
-        match = docs.map(c=>({...c,score:scoreCandidate(c)})).sort((a,b)=>b.score-a.score).find(c=>c.score>=0.58);
+    const targetTitle = normalizeBookText(title);
+    const targetAuthor = normalizeBookText(author);
+    const score = (candidateTitle, candidateAuthors) => {
+      const t = normalizeBookText(candidateTitle);
+      const a = normalizeBookText((candidateAuthors || []).join(" "));
+      if (!t) return 0;
+      let value = t === targetTitle ? 0.72 : (t.includes(targetTitle) || targetTitle.includes(t) ? 0.48 : 0);
+      if (targetAuthor && a) {
+        if (a.includes(targetAuthor) || targetAuthor.includes(a)) value += 0.28;
+        else if (targetAuthor.split(" ").some(w => w.length > 2 && a.includes(w))) value += 0.08;
       }
+      return value;
+    };
+    const getJson = async (url) => {
+      const response = await fetch(url, {headers:{Accept:"application/json"}, signal:AbortSignal.timeout(10000)});
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      return response.json();
+    };
+    let match = null;
+    // 1. Open Library
+    try {
+      const data = await getJson(`https://openlibrary.org/search.json?q=${encodeURIComponent(title + " " + author)}&fields=key,title,author_name,first_publish_year,publisher,first_sentence,number_of_pages_median,isbn,cover_i&limit=15`);
+      const docs = (data.docs || []).map(doc => ({
+        source:"Open Library", externalId:doc.key || "",
+        title:doc.title, authors:doc.author_name || [], year:doc.first_publish_year || "",
+        publisher:(doc.publisher || [])[0] || "",
+        description:Array.isArray(doc.first_sentence) ? doc.first_sentence.join(" ") : (doc.first_sentence || ""),
+        pageCount:doc.number_of_pages_median || "",
+        coverUrl:doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg?default=false` : "",
+        isbn:doc.isbn?.[0] || ""
+      })).map(x => ({...x, score:score(x.title,x.authors)})).sort((a,b)=>b.score-a.score);
+      match = docs.find(x => x.score >= 0.62) || null;
     } catch (_) {}
+    // 2. Google Books (fallback, API có thể giới hạn lượt truy cập)
     if (!match) {
       try {
-        const response = await fetch(`https://archive.org/advancedsearch.php?q=${encodeURIComponent('title:"'+title+'" AND creator:"'+author+'"')}&fl[]=identifier,title,creator,year,description&rows=10&output=json`);
-        if (response.ok) {
-          const data = await response.json();
-          const docs = (data.response?.docs||[]).map(doc=>({source:"Internet Archive",externalId:doc.identifier||"",info:{title:doc.title,authors:Array.isArray(doc.creator)?doc.creator:(doc.creator?[doc.creator]:[]),publishedDate:String(doc.year||""),description:typeof doc.description==="string"?doc.description:"",imageLinks:doc.identifier?{thumbnail:`https://archive.org/services/img/${encodeURIComponent(doc.identifier)}`}:{},industryIdentifiers:[]}}));
-          match = docs.map(c=>({...c,score:scoreCandidate(c)})).sort((a,b)=>b.score-a.score).find(c=>c.score>=0.58);
-        }
+        const data = await getJson(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent("intitle:" + title + " inauthor:" + author)}&maxResults=10`);
+        const docs = (data.items || []).map(item => {
+          const info = item.volumeInfo || {};
+          const ids = info.industryIdentifiers || [];
+          const links = info.imageLinks || {};
+          return {
+            source:"Google Books", externalId:item.id || "", title:info.title || "",
+            authors:info.authors || [], year:(info.publishedDate || "").slice(0,4),
+            publisher:info.publisher || "", description:info.description || "",
+            pageCount:info.pageCount || "",
+            coverUrl:(links.extraLarge || links.large || links.medium || links.thumbnail || links.smallThumbnail || "").replace(/^http:/i,"https:").replace(/&edge=curl/g,""),
+            isbn:ids.find(x=>x.type==="ISBN_13")?.identifier || ids.find(x=>x.type==="ISBN_10")?.identifier || ""
+          };
+        }).map(x=>({...x,score:score(x.title,x.authors)})).sort((a,b)=>b.score-a.score);
+        match = docs.find(x=>x.score>=0.62) || null;
+      } catch (_) {}
+    }
+    // 3. Internet Archive
+    if (!match) {
+      try {
+        const q = `title:"${title.replace(/["']/g," ")}" AND creator:"${author.replace(/["']/g," ")}"`;
+        const data = await getJson(`https://archive.org/advancedsearch.php?q=${encodeURIComponent(q)}&fl[]=identifier,title,creator,year,description&rows=12&output=json`);
+        const docs = (data.response?.docs || []).map(doc => ({
+          source:"Internet Archive", externalId:doc.identifier || "", title:doc.title || "",
+          authors:Array.isArray(doc.creator) ? doc.creator : (doc.creator ? [doc.creator] : []),
+          year:String(doc.year || ""), publisher:"", description:typeof doc.description==="string" ? doc.description : "",
+          pageCount:"", coverUrl:doc.identifier ? `https://archive.org/services/img/${encodeURIComponent(doc.identifier)}` : "", isbn:""
+        })).map(x=>({...x,score:score(x.title,x.authors)})).sort((a,b)=>b.score-a.score);
+        match = docs.find(x=>x.score>=0.62) || null;
       } catch (_) {}
     }
     if (!match) {
       localStorage.setItem(cacheKey, JSON.stringify({notFound:true, checkedAt:Date.now()}));
       return null;
     }
-    const info = match.info || {}, links = info.imageLinks || {};
-    const identifiers = info.industryIdentifiers || [];
     const metadata = {
-      source: match.source, externalId: match.externalId || "",
-      title: info.title || title, author: (info.authors || []).join(", ") || author,
-      publisher: info.publisher || "", year: (info.publishedDate || "").slice(0,4),
-      description: String(info.description || "").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim(),
-      coverUrl: (links.extraLarge || links.large || links.medium || links.thumbnail || links.smallThumbnail || "").replace(/^http:/i,"https:").replace("&edge=curl", ""),
-      isbn: (identifiers.find(x => x.type === "ISBN_13") || identifiers.find(x => x.type === "ISBN_10") || {}).identifier || "",
-      pageCount: info.pageCount || ""
+      source:match.source, externalId:match.externalId || "", title:match.title || title,
+      author:(match.authors || []).join(", ") || author, publisher:match.publisher || "",
+      year:String(match.year || "").slice(0,4),
+      description:String(match.description || "").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim(),
+      coverUrl:match.coverUrl || "", isbn:match.isbn || "", pageCount:match.pageCount || ""
     };
     localStorage.setItem(cacheKey, JSON.stringify(metadata));
     return metadata;
