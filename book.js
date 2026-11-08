@@ -183,10 +183,11 @@ function initOnlineBookSearch() {
       const info=item.volumeInfo||{};
       const authors=(info.authors||["Chưa cập nhật tác giả"]).join(", ");
       const cover=info.imageLinks?.thumbnail||"";
+      const alternates=info.imageLinks?.alternates||[];
       const year=(info.publishedDate||"").slice(0,4);
       const description=cleanDescription(info.description)||"Chưa có mô tả.";
       return `<article class="online-book-card">
-        <div class="online-cover-wrap">${cover ? `<img src="${escapeHTML(cover)}" alt="Bìa ${safeText(info.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=&quot;online-no-cover&quot;>Chưa có ảnh bìa</div>'">` : '<div class="online-no-cover">Chưa có ảnh bìa</div>'}</div>
+        <div class="online-cover-wrap">${cover ? `<img class="online-result-cover" src="${escapeHTML(cover)}" data-alternates="${escapeHTML(JSON.stringify(alternates))}" alt="Bìa ${safeText(info.title)}" loading="lazy">` : '<div class="online-no-cover">Chưa có ảnh bìa</div>'}</div>
         <div class="online-book-info">
           <h3>${safeText(info.title)}</h3>
           <p><b>Tác giả:</b> ${safeText(authors)}</p>
@@ -199,6 +200,15 @@ function initOnlineBookSearch() {
         </div>
       </article>`;
     }).join("");
+    results.querySelectorAll(".online-result-cover").forEach(img=>{
+      img.addEventListener("error",()=>{
+        let alternatives=[];
+        try{alternatives=JSON.parse(img.dataset.alternates||"[]");}catch(_){}
+        const next=alternatives.shift();
+        if(next){img.dataset.alternates=JSON.stringify(alternatives);img.src=next;}
+        else {img.remove();const empty=document.createElement("div");empty.className="online-no-cover";empty.textContent="Chưa có ảnh bìa";img.parentElement?.appendChild(empty);}
+      });
+    });
   }
 
   form.addEventListener("submit", async event => {
@@ -247,7 +257,18 @@ function initOnlineBookSearch() {
       const old=unique.get(key);
       const quality=(v.imageLinks?.thumbnail?4:0)+(v.description?2:0)+(v.publishedDate?1:0)+(v.publisher?1:0);
       const oldQuality=old?((old.volumeInfo.imageLinks?.thumbnail?4:0)+(old.volumeInfo.description?2:0)+(old.volumeInfo.publishedDate?1:0)+(old.volumeInfo.publisher?1:0)):-1;
-      if(!old||quality>oldQuality)unique.set(key,item);
+      if(!old) unique.set(key,item);
+      else {
+        const oldLinks=old.volumeInfo.imageLinks||{};
+        const newCover=v.imageLinks?.thumbnail||"";
+        const alternates=[...(oldLinks.alternates||[]),...(newCover&&newCover!==oldLinks.thumbnail?[newCover]:[]),...(v.imageLinks?.alternates||[])];
+        old.volumeInfo.imageLinks={...oldLinks,alternates:[...new Set(alternates)]};
+        if(quality>oldQuality) {
+          const keepAlternates=old.volumeInfo.imageLinks.alternates;
+          unique.set(key,item);
+          item.volumeInfo.imageLinks={...(item.volumeInfo.imageLinks||{}),alternates:keepAlternates};
+        }
+      }
     }
     items=[...unique.values()].slice(0,30);
     const successful=settled.filter(x=>x.status==="fulfilled").length;
