@@ -617,6 +617,9 @@ async function loadRealBookCovers(root = document) {
           saveData(data);
         }
       } else {
+        // URL bìa trong cache cũng có thể đã chết; xóa cache để lần sau tra cứu lại.
+        const failedCacheKey = "bookMetadata:" + normalizeBookText(title + " " + author);
+        localStorage.removeItem(failedCacheKey);
         img.src = fallback;
       }
 
