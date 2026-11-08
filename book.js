@@ -151,7 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-// Tìm kiếm sách trực tuyến bằng Google Books API và cho phép thêm vào thư viện.
+// Tìm kiếm sách trực tuyến từ Open Library, Google Books và Internet Archive.
 function initOnlineBookSearch() {
   const form = document.getElementById("onlineSearchForm");
   if (!form) return;
@@ -162,162 +162,132 @@ function initOnlineBookSearch() {
   const results = document.getElementById("onlineBookResults");
   const message = document.getElementById("onlineSearchMessage");
   const button = document.getElementById("onlineSearchButton");
-  const categories = [
-    "Văn học",
-    "Kỹ năng sống",
-    "Tiểu thuyết",
-    "Công nghệ",
-    "Khoa học & khám phá",
-    "Nghệ thuật",
-    "Sức khỏe",
-  ];
+  const categories = ["Văn học","Kỹ năng sống","Tiểu thuyết","Công nghệ","Khoa học & khám phá","Nghệ thuật","Sức khỏe"];
   let foundBooks = [];
 
-  const getCover = (info) => {
-    const links = info.imageLinks || {};
-    return (links.extraLarge || links.large || links.medium || links.thumbnail || links.smallThumbnail || "")
-      .replace(/^http:/i, "https:")
-      .replace(/&edge=curl/g, "");
+  const safeText = value => escapeHTML(value || "Chưa cập nhật");
+  const cleanDescription = value => String(value || "").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim().slice(0,260);
+  const json = async url => {
+    const response = await fetch(url,{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    return response.json();
   };
-
-  const safeText = (value) => escapeHTML(value || "Chưa cập nhật");
 
   function renderResults(items) {
     foundBooks = items;
     if (!items.length) {
-      results.innerHTML = '<div class="empty">Không tìm thấy sách phù hợp. Cậu thử từ khóa khác nhé.</div>';
+      results.innerHTML = '<div class="empty">Không tìm thấy sách phù hợp. Cậu thử tên sách hoặc ISBN khác nhé.</div>';
       return;
     }
-
-    results.innerHTML = items.map((item, index) => {
-      const info = item.volumeInfo || {};
-      const authors = (info.authors || ["Chưa cập nhật tác giả"]).join(", ");
-      const cover = getCover(info);
-      const year = (info.publishedDate || "").slice(0, 4);
-      const description = (info.description || "Chưa có mô tả.").replace(/<[^>]*>/g, " ").slice(0, 260);
+    results.innerHTML = items.map((item,index) => {
+      const info=item.volumeInfo||{};
+      const authors=(info.authors||["Chưa cập nhật tác giả"]).join(", ");
+      const cover=info.imageLinks?.thumbnail||"";
+      const year=(info.publishedDate||"").slice(0,4);
+      const description=cleanDescription(info.description)||"Chưa có mô tả.";
       return `<article class="online-book-card">
-        <div class="online-cover-wrap">${cover ? `<img src="${escapeHTML(cover)}" alt="Bìa ${safeText(info.title)}" loading="lazy">` : '<div class="online-no-cover">Chưa có ảnh bìa</div>'}</div>
+        <div class="online-cover-wrap">${cover ? `<img src="${escapeHTML(cover)}" alt="Bìa ${safeText(info.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=&quot;online-no-cover&quot;>Chưa có ảnh bìa</div>'">` : '<div class="online-no-cover">Chưa có ảnh bìa</div>'}</div>
         <div class="online-book-info">
           <h3>${safeText(info.title)}</h3>
           <p><b>Tác giả:</b> ${safeText(authors)}</p>
-          <p><b>Năm xuất bản:</b> ${safeText(year || "Chưa cập nhật")}</p>
+          <p><b>Năm xuất bản:</b> ${safeText(year)}</p>
+          <p><b>Nguồn:</b> ${safeText(item.sourceName)}</p>
           <p class="online-description">${safeText(description)}</p>
           <label class="online-category-label" for="onlineCategory${index}">Danh mục trong thư viện</label>
-          <select id="onlineCategory${index}" class="online-category">${categories.map((c) => `<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join("")}</select>
-          ${isAdmin() ? `<button type="button" class="online-add-button" data-online-index="${index}">＋ Thêm vào thư viện</button>` : `<p class="online-admin-note">Chỉ quản trị viên mới có quyền thêm sách vào thư viện.</p>`}
+          <select id="onlineCategory${index}" class="online-category">${categories.map(c=>`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join("")}</select>
+          <button type="button" class="online-add-button" data-online-index="${index}">＋ Thêm vào thư viện</button>
         </div>
       </article>`;
     }).join("");
   }
 
-  form.addEventListener("submit", async (event) => {
+  form.addEventListener("submit", async event => {
     event.preventDefault();
-    const keyword = input.value.trim();
-    if (!keyword) return;
-    button.disabled = true;
-    button.textContent = "Đang tìm...";
-    message.textContent = "Đang tìm sách từ Open Library...";
-    results.innerHTML = "";
-
-    try {
-      const query = /^\d{10,13}$/.test(keyword) ? `isbn:${keyword}` : keyword;
-      let items = [];
-      let source = "Open Library";
-      const isbnSearch = /^\d{10,13}$/.test(keyword);
-      // Nguồn chính: Open Library
-      try {
-        const openQuery = isbnSearch ? `isbn=${encodeURIComponent(keyword)}` : `q=${encodeURIComponent(keyword)}`;
-        const response = await fetch(`https://openlibrary.org/search.json?${openQuery}&limit=20`, {signal: AbortSignal.timeout(12000), headers:{Accept:"application/json"}});
-        if (!response.ok) throw new Error(`Open Library ${response.status}`);
-        const data = await response.json();
-        items = (data.docs || []).filter(doc => doc.title).map(doc => ({
-          id: `openlibrary:${doc.key || doc.title}`,
-          volumeInfo: {
-            title: doc.title, authors: doc.author_name || [],
-            publishedDate: doc.first_publish_year ? String(doc.first_publish_year) : "",
-            description: doc.first_sentence || "",
-            publisher: (doc.publisher || [])[0] || "",
-            imageLinks: doc.cover_i ? {thumbnail:`https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`} : {},
-            industryIdentifiers: (doc.isbn || []).slice(0,5).map(isbn => ({type:isbn.length===13?"ISBN_13":"ISBN_10",identifier:isbn})),
-            openLibraryKey: doc.key || ""
-          }
+    const keyword=input.value.trim();
+    if(!keyword)return;
+    button.disabled=true; button.textContent="Đang tìm...";
+    message.textContent="Đang tìm trên Open Library, Google Books và Internet Archive...";
+    results.innerHTML="";
+    const isbnSearch=/^\d{10,13}$/.test(keyword);
+    const tasks=[
+      (async()=>{
+        const query=isbnSearch?`isbn=${encodeURIComponent(keyword)}`:`q=${encodeURIComponent(keyword)}`;
+        const data=await json(`https://openlibrary.org/search.json?${query}&fields=key,title,author_name,first_publish_year,publisher,first_sentence,isbn,cover_i&limit=15`);
+        return (data.docs||[]).filter(d=>d.title).map(d=>({
+          id:"openlibrary:"+ (d.key||d.title),sourceName:"Open Library",
+          volumeInfo:{title:d.title,authors:d.author_name||[],publishedDate:d.first_publish_year?String(d.first_publish_year):"",description:Array.isArray(d.first_sentence)?d.first_sentence.join(" "):(d.first_sentence||""),publisher:(d.publisher||[])[0]||"",imageLinks:d.cover_i?{thumbnail:`https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg?default=false`}:{},industryIdentifiers:(d.isbn||[]).slice(0,8).map(x=>({type:x.length===13?"ISBN_13":"ISBN_10",identifier:x}))}
         }));
-      } catch (openError) {
-        // Dự phòng: Internet Archive
-        source = "Internet Archive";
-        const q = encodeURIComponent(isbnSearch ? `isbn:${keyword}` : keyword);
-        const response = await fetch(`https://archive.org/advancedsearch.php?q=${q}&fl[]=identifier,title,creator,year,description&rows=20&page=1&output=json`, {signal:AbortSignal.timeout(12000)});
-        if (!response.ok) throw new Error(`Open Library và Internet Archive đều không phản hồi (${openError.message}; ${response.status})`);
-        const data = await response.json();
-        items = (data.response?.docs || []).filter(doc=>doc.title).map(doc=>({
-          id:`archive:${doc.identifier}`,
-          volumeInfo:{title:doc.title,authors:Array.isArray(doc.creator)?doc.creator:(doc.creator?[doc.creator]:[]),publishedDate:String(doc.year||""),description:typeof doc.description==="string"?doc.description:"",imageLinks:{thumbnail:`https://archive.org/services/img/${encodeURIComponent(doc.identifier)}`},industryIdentifiers:[],archiveIdentifier:doc.identifier}
+      })(),
+      (async()=>{
+        const q=isbnSearch?`isbn:${keyword}`:keyword;
+        const data=await json(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=15`);
+        return (data.items||[]).map(item=>{
+          const v=item.volumeInfo||{},links=v.imageLinks||{};
+          return {id:"googlebooks:"+item.id,sourceName:"Google Books",volumeInfo:{title:v.title||"",authors:v.authors||[],publishedDate:v.publishedDate||"",description:v.description||"",publisher:v.publisher||"",imageLinks:{thumbnail:(links.thumbnail||links.smallThumbnail||"").replace(/^http:/i,"https:").replace(/&edge=curl/g,"")},industryIdentifiers:v.industryIdentifiers||[]}};
+        }).filter(x=>x.volumeInfo.title);
+      })(),
+      (async()=>{
+        const q=encodeURIComponent(isbnSearch?`isbn:${keyword}`:keyword);
+        const data=await json(`https://archive.org/advancedsearch.php?q=${q}&fl[]=identifier,title,creator,year,description&rows=15&page=1&output=json`);
+        return (data.response?.docs||[]).filter(d=>d.title&&d.identifier).map(d=>({
+          id:"archive:"+d.identifier,sourceName:"Internet Archive",
+          volumeInfo:{title:d.title,authors:Array.isArray(d.creator)?d.creator:(d.creator?[d.creator]:[]),publishedDate:String(d.year||""),description:typeof d.description==="string"?d.description:"",imageLinks:{thumbnail:`https://archive.org/services/img/${encodeURIComponent(d.identifier)}`},industryIdentifiers:[],archiveIdentifier:d.identifier}
         }));
-      }
-
-      message.textContent = items.length
-        ? `Tìm thấy ${items.length} kết quả từ ${source}.`
-        : "Không tìm thấy sách phù hợp ở Open Library và Internet Archive. Cậu thử tên sách hoặc ISBN khác nhé.";
-      renderResults(items);
-    } catch (error) {
-      const detail = error.name === "AbortError"
-        ? "Kết nối quá thời gian chờ."
-        : (error.message || "Không rõ nguyên nhân.");
-      message.textContent = `Chưa kết nối được Open Library hoặc Internet Archive (${detail}). Cậu kiểm tra Internet hoặc thử lại nhé.`;
-      results.innerHTML = '<div class="empty">Chưa tải được kết quả trực tuyến. Nếu cậu đang mở file trực tiếp bằng máy tính, hãy thử chạy website qua GitHub Pages hoặc máy chủ cục bộ.</div>';
-    } finally {
-      button.disabled = false;
-      button.textContent = "Tìm sách trực tuyến";
+      })()
+    ];
+    const settled=await Promise.allSettled(tasks);
+    let items=[];
+    settled.forEach(result=>{if(result.status==="fulfilled")items.push(...result.value);});
+    // Gộp trùng theo tên sách + tác giả, ưu tiên kết quả có ảnh bìa và metadata đầy đủ.
+    const unique=new Map();
+    for(const item of items){
+      const v=item.volumeInfo||{};
+      const key=normalizeBookText(v.title)+"|"+normalizeBookText((v.authors||[]).join(" "));
+      if(!key||key==="|")continue;
+      const old=unique.get(key);
+      const quality=(v.imageLinks?.thumbnail?4:0)+(v.description?2:0)+(v.publishedDate?1:0)+(v.publisher?1:0);
+      const oldQuality=old?((old.volumeInfo.imageLinks?.thumbnail?4:0)+(old.volumeInfo.description?2:0)+(old.volumeInfo.publishedDate?1:0)+(old.volumeInfo.publisher?1:0)):-1;
+      if(!old||quality>oldQuality)unique.set(key,item);
     }
+    items=[...unique.values()].slice(0,30);
+    const successful=settled.filter(x=>x.status==="fulfilled").length;
+    const sources=[...new Set(items.map(x=>x.sourceName))];
+    message.textContent=items.length
+      ? `Tìm thấy ${items.length} kết quả. Nguồn: ${sources.join(", ")}.`
+      : successful ? "Không tìm thấy kết quả ở các nguồn trực tuyến. Cậu thử từ khóa khác nhé." : "Các nguồn tìm kiếm tạm thời không phản hồi. Cậu thử lại sau nhé.";
+    renderResults(items);
+    button.disabled=false; button.textContent="Tìm sách trực tuyến";
   });
 
-  results.addEventListener("click", (event) => {
-    const addButton = event.target.closest("[data-online-index]");
-    if (!addButton) return;
-    if (!isAdmin()) { message.textContent = "Chỉ quản trị viên mới có quyền thêm sách."; return; }
-    const index = Number(addButton.dataset.onlineIndex);
-    const item = foundBooks[index];
-    if (!item) return;
-
-    const info = item.volumeInfo || {};
-    const title = (info.title || "").trim();
-    const author = (info.authors || ["Chưa cập nhật tác giả"]).join(", ");
-    if (!title) return;
-
-    const data = getData();
-    const alreadyExists = data.books.some((book) =>
-      (book.externalBookId && book.externalBookId === item.id) ||
-      (book.isbn && (info.industryIdentifiers || []).some(x => x.identifier === book.isbn)) ||
-      (normalizeBookText(book.title) === normalizeBookText(title) &&
-       normalizeBookText(book.author) === normalizeBookText(author))
+  results.addEventListener("click",event=>{
+    const addButton=event.target.closest("[data-online-index]");
+    if(!addButton)return;
+    if(!isAdmin()){message.textContent="Chỉ quản trị viên mới có quyền thêm sách.";return;}
+    const item=foundBooks[Number(addButton.dataset.onlineIndex)];
+    if(!item)return;
+    const info=item.volumeInfo||{};
+    const title=(info.title||"").trim();
+    const author=(info.authors||["Chưa cập nhật tác giả"]).join(", ");
+    if(!title)return;
+    const data=getData();
+    const identifiers=info.industryIdentifiers||[];
+    const isbn=identifiers.find(x=>x.type==="ISBN_13")?.identifier||identifiers.find(x=>x.type==="ISBN_10")?.identifier||"";
+    const duplicate=data.books.some(book=>
+      (book.externalBookId&&book.externalBookId===item.id)||
+      (isbn&&book.isbn===isbn)||
+      (normalizeBookText(book.title)===normalizeBookText(title)&&normalizeBookText(book.author)===normalizeBookText(author))
     );
-    if (alreadyExists) {
-      message.textContent = `“${title}” đã có trong thư viện rồi.`;
-      return;
-    }
-
-    const categorySelect = document.getElementById(`onlineCategory${index}`);
-    const coverUrl = getCover(info);
-    const book = {
-      id: nextId(data.books),
-      title,
-      author,
-      category: categorySelect ? categorySelect.value : "Văn học",
-      year: Number((info.publishedDate || "").slice(0, 4)) || "",
-      // Đây mới là bản ghi tra cứu trực tuyến, chưa xác nhận có sách vật lý trong kho.
-      // Quản trị viên cập nhật số lượng thực tế sau khi thư viện có bản sách.
-      quantity: 0,
-      description: (info.description || "").replace(/<[^>]*>/g, " ").trim(),
-      coverUrl,
-      externalBookId: item.id,
-      metadataSource: item.id.startsWith("archive:") ? "Internet Archive" : "Open Library",
-      isbn: (info.industryIdentifiers || []).find((id) => id.type === "ISBN_13")?.identifier ||
-            (info.industryIdentifiers || []).find((id) => id.type === "ISBN_10")?.identifier || "",
+    if(duplicate){message.textContent=`“${title}” đã có trong thư viện rồi.`;return;}
+    const categorySelect=document.getElementById(`onlineCategory${Number(addButton.dataset.onlineIndex)}`);
+    const book={
+      id:nextId(data.books),title,author,category:categorySelect?categorySelect.value:"Văn học",
+      year:Number((info.publishedDate||"").slice(0,4))||"",
+      quantity:0,description:cleanDescription(info.description),
+      coverUrl:info.imageLinks?.thumbnail||"",externalBookId:item.id,
+      metadataSource:item.sourceName,isbn
     };
-    data.books.push(book);
-    saveData(data);
-    message.textContent = `Đã thêm “${title}” vào danh mục thư viện. Số lượng đang là 0; quản trị viên có thể cập nhật khi thư viện có sách thật.`;
-    addButton.disabled = true;
-    addButton.textContent = "✓ Đã thêm";
+    data.books.push(book); saveData(data);
+    message.textContent=`Đã thêm “${title}” vào thư viện. Số lượng đang là 0; cậu có thể cập nhật khi có sách thật.`;
+    addButton.disabled=true; addButton.textContent="✓ Đã thêm";
   });
 }
