@@ -440,10 +440,23 @@ function escapeHTML(v) {
       ],
   );
 }
-// Ảnh bìa và thông tin sách được tra cứu từ Open Library, dự phòng Internet Archive.
-// Không dùng các ảnh bìa minh họa/tải sẵn trong thư mục dự án.
+// Ưu tiên bìa trực tuyến đã lưu; nếu chưa có thì dùng bìa dự phòng có sẵn trong dự án.
+function fallbackCoverForBook(book) {
+  const title = normalizeBookText(book?.title || "");
+  const localCovers = [
+    ["de men phieu luu ky", "images/covers/de-men.svg"],
+    ["toi thay hoa vang tren co xanh", "images/covers/hoa-vang.svg"],
+    ["lao hac", "images/covers/hoa-vang.svg"],
+    ["vo nhat", "images/covers/hoa-vang.svg"],
+    ["nha gia kim", "images/covers/nha-gia-kim.svg"],
+    ["dac nhan tam", "images/covers/dac-nhan-tam.svg"],
+    ["clean code", "images/covers/clean-code.svg"]
+  ];
+  const found = localCovers.find(([name]) => title.includes(name) || name.includes(title));
+  return found ? found[1] : "images/cover-loading.svg";
+}
 function coverForBook(book) {
-  return book.coverUrl || "images/cover-loading.svg";
+  return book.coverUrl || fallbackCoverForBook(book);
 }
 function normalizeBookText(value) {
   return String(value || "")
@@ -462,7 +475,12 @@ async function findOnlineBookMetadata(title, author) {
   const cacheKey = "bookMetadata:" + normalizeBookText(title + " " + author);
   const cached = localStorage.getItem(cacheKey);
   if (cached) {
-    try { return JSON.parse(cached); } catch (_) {}
+    try {
+      const parsed = JSON.parse(cached);
+      // Không giữ kết quả không tìm thấy vĩnh viễn; thử tra cứu lại ở lần sau.
+      if (!parsed?.notFound) return parsed;
+      localStorage.removeItem(cacheKey);
+    } catch (_) { localStorage.removeItem(cacheKey); }
   }
   if (bookMetadataJobs.has(cacheKey)) return bookMetadataJobs.get(cacheKey);
   const job = (async () => {
@@ -514,13 +532,25 @@ async function loadRealBookCovers(root = document) {
     img.dataset.coverLoaded = "1";
     const bookId = Number(img.dataset.bookId || 0);
     const current = getData().books.find(b => b.id === bookId);
-    if (current && current.coverUrl) { img.src = current.coverUrl; continue; }
+    const fallback = fallbackCoverForBook(current || { title: img.dataset.bookTitle || "" });
+    img.dataset.fallbackCover = fallback;
+    img.onerror = () => {
+      if (img.dataset.fallbackApplied === "1") return;
+      img.dataset.fallbackApplied = "1";
+      img.src = img.dataset.fallbackCover || "images/cover-loading.svg";
+    };
+    if (current && current.coverUrl) {
+      img.src = current.coverUrl;
+      continue;
+    }
     const title = img.dataset.bookTitle || "", author = img.dataset.bookAuthor || "";
     try {
       const metadata = await findOnlineBookMetadata(title, author);
-      if (!metadata) { img.src = "images/cover-loading.svg"; img.classList.add("cover-not-found"); continue; }
-      if (metadata.coverUrl) img.src = metadata.coverUrl;
-      else { img.src = "images/cover-loading.svg"; img.classList.add("cover-not-found"); }
+      if (!metadata) { img.src = fallback; continue; }
+      if (metadata.coverUrl) {
+        img.src = metadata.coverUrl;
+        img.dataset.fallbackApplied = "0";
+      } else { img.src = fallback; }
       if (bookId) {
         const data = getData();
         const book = data.books.find(b => b.id === bookId);
@@ -542,10 +572,7 @@ async function loadRealBookCovers(root = document) {
           if (isbnEl && metadata.isbn) isbnEl.textContent = metadata.isbn;
         }
       }
-    } catch (_) {
-      img.src = "images/cover-loading.svg";
-      img.classList.add("cover-not-found");
-    }
+    } catch (_) { img.src = fallback; }
   }
 }
 
