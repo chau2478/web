@@ -473,6 +473,7 @@ async function findOnlineBookMetadata(title, author) {
     } catch (_) { localStorage.removeItem(cacheKey); }
   }
   if (bookMetadataJobs.has(cacheKey)) return bookMetadataJobs.get(cacheKey);
+
   const job = (async () => {
     const targetTitle = normalizeBookText(title);
     const targetAuthor = normalizeBookText(author);
@@ -487,60 +488,77 @@ async function findOnlineBookMetadata(title, author) {
       }
       return value;
     };
-    const getJson = async (url) => {
-      const response = await fetch(url, {headers:{Accept:"application/json"}, signal:AbortSignal.timeout(10000)});
+    const getJson = async url => {
+      const response = await fetch(url, {headers:{Accept:"application/json"}});
       if (!response.ok) throw new Error("HTTP " + response.status);
       return response.json();
     };
-    let match = null;
-    // 1. Open Library
+    const candidates = [];
+
+    // Open Library: lấy cả kết quả không có bìa để đối chiếu, nhưng không dừng ở đó.
     try {
-      const data = await getJson(`https://openlibrary.org/search.json?q=${encodeURIComponent(title + " " + author)}&fields=key,title,author_name,first_publish_year,publisher,first_sentence,number_of_pages_median,isbn,cover_i&limit=15`);
-      const docs = (data.docs || []).map(doc => ({
-        source:"Open Library", externalId:doc.key || "",
-        title:doc.title, authors:doc.author_name || [], year:doc.first_publish_year || "",
-        publisher:(doc.publisher || [])[0] || "",
-        description:Array.isArray(doc.first_sentence) ? doc.first_sentence.join(" ") : (doc.first_sentence || ""),
-        pageCount:doc.number_of_pages_median || "",
-        coverUrl:doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg?default=false` : "",
-        isbn:doc.isbn?.[0] || ""
-      })).map(x => ({...x, score:score(x.title,x.authors)})).sort((a,b)=>b.score-a.score);
-      match = docs.find(x => x.score >= 0.62) || null;
+      const data = await getJson(`https://openlibrary.org/search.json?q=${encodeURIComponent(title + " " + author)}&fields=key,title,author_name,first_publish_year,publisher,first_sentence,number_of_pages_median,isbn,cover_i&limit=20`);
+      (data.docs || []).forEach(doc => {
+        if (!doc.cover_i) return;
+        const item = {
+          source:"Open Library", externalId:doc.key || "", title:doc.title,
+          authors:doc.author_name || [], year:doc.first_publish_year || "",
+          publisher:(doc.publisher || [])[0] || "",
+          description:Array.isArray(doc.first_sentence) ? doc.first_sentence.join(" ") : (doc.first_sentence || ""),
+          pageCount:doc.number_of_pages_median || "",
+          coverUrl:`https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`,
+          isbn:doc.isbn?.[0] || ""
+        };
+        item.score = score(item.title,item.authors);
+        if (item.score >= 0.62) candidates.push(item);
+      });
     } catch (_) {}
-    // 2. Google Books (fallback, API có thể giới hạn lượt truy cập)
-    if (!match) {
-      try {
-        const data = await getJson(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent("intitle:" + title + " inauthor:" + author)}&maxResults=10`);
-        const docs = (data.items || []).map(item => {
-          const info = item.volumeInfo || {};
-          const ids = info.industryIdentifiers || [];
-          const links = info.imageLinks || {};
-          return {
-            source:"Google Books", externalId:item.id || "", title:info.title || "",
-            authors:info.authors || [], year:(info.publishedDate || "").slice(0,4),
-            publisher:info.publisher || "", description:info.description || "",
-            pageCount:info.pageCount || "",
-            coverUrl:(links.extraLarge || links.large || links.medium || links.thumbnail || links.smallThumbnail || "").replace(/^http:/i,"https:").replace(/&edge=curl/g,""),
-            isbn:ids.find(x=>x.type==="ISBN_13")?.identifier || ids.find(x=>x.type==="ISBN_10")?.identifier || ""
-          };
-        }).map(x=>({...x,score:score(x.title,x.authors)})).sort((a,b)=>b.score-a.score);
-        match = docs.find(x=>x.score>=0.62) || null;
-      } catch (_) {}
-    }
-    // 3. Internet Archive
-    if (!match) {
-      try {
-        const q = `title:"${title.replace(/["']/g," ")}" AND creator:"${author.replace(/["']/g," ")}"`;
-        const data = await getJson(`https://archive.org/advancedsearch.php?q=${encodeURIComponent(q)}&fl[]=identifier,title,creator,year,description&rows=12&output=json`);
-        const docs = (data.response?.docs || []).map(doc => ({
-          source:"Internet Archive", externalId:doc.identifier || "", title:doc.title || "",
+
+    // Google Books: vẫn kiểm tra ngay cả khi Open Library đã tìm thấy mô tả.
+    try {
+      const data = await getJson(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent("intitle:" + title + " inauthor:" + author)}&maxResults=20`);
+      (data.items || []).forEach(item => {
+        const info = item.volumeInfo || {};
+        const ids = info.industryIdentifiers || [];
+        const links = info.imageLinks || {};
+        const cover = links.extraLarge || links.large || links.medium || links.thumbnail || links.smallThumbnail || "";
+        if (!cover) return;
+        const itemData = {
+          source:"Google Books", externalId:item.id || "", title:info.title || "",
+          authors:info.authors || [], year:(info.publishedDate || "").slice(0,4),
+          publisher:info.publisher || "", description:info.description || "",
+          pageCount:info.pageCount || "",
+          coverUrl:cover.replace(/^http:/i,"https:").replace(/&edge=curl/g,""),
+          isbn:ids.find(x=>x.type==="ISBN_13")?.identifier || ids.find(x=>x.type==="ISBN_10")?.identifier || ""
+        };
+        itemData.score = score(itemData.title,itemData.authors);
+        if (itemData.score >= 0.62) candidates.push(itemData);
+      });
+    } catch (_) {}
+
+    // Internet Archive: ảnh bìa theo identifier của bản số hóa.
+    try {
+      const q = `title:"${title.replace(/["']/g," ")}" AND creator:"${author.replace(/["']/g," ")}"`;
+      const data = await getJson(`https://archive.org/advancedsearch.php?q=${encodeURIComponent(q)}&fl[]=identifier,title,creator,year,description&rows=20&output=json`);
+      (data.response?.docs || []).forEach(doc => {
+        if (!doc.identifier) return;
+        const item = {
+          source:"Internet Archive", externalId:doc.identifier, title:doc.title || "",
           authors:Array.isArray(doc.creator) ? doc.creator : (doc.creator ? [doc.creator] : []),
-          year:String(doc.year || ""), publisher:"", description:typeof doc.description==="string" ? doc.description : "",
-          pageCount:"", coverUrl:doc.identifier ? `https://archive.org/services/img/${encodeURIComponent(doc.identifier)}` : "", isbn:""
-        })).map(x=>({...x,score:score(x.title,x.authors)})).sort((a,b)=>b.score-a.score);
-        match = docs.find(x=>x.score>=0.62) || null;
-      } catch (_) {}
-    }
+          year:String(doc.year || ""), publisher:"",
+          description:typeof doc.description==="string" ? doc.description : "",
+          pageCount:"",
+          coverUrl:`https://archive.org/services/img/${encodeURIComponent(doc.identifier)}`,
+          isbn:""
+        };
+        item.score = score(item.title,item.authors);
+        if (item.score >= 0.62) candidates.push(item);
+      });
+    } catch (_) {}
+
+    // Ưu tiên kết quả khớp tên/tác giả VÀ có ảnh; tránh dừng ở bản ghi chỉ có mô tả.
+    candidates.sort((a,b) => b.score - a.score);
+    const match = candidates.find(x => x.coverUrl) || null;
     if (!match) {
       localStorage.setItem(cacheKey, JSON.stringify({notFound:true, checkedAt:Date.now()}));
       return null;
@@ -549,7 +567,7 @@ async function findOnlineBookMetadata(title, author) {
       source:match.source, externalId:match.externalId || "", title:match.title || title,
       author:(match.authors || []).join(", ") || author, publisher:match.publisher || "",
       year:String(match.year || "").slice(0,4),
-      description:String(match.description || "").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim(),
+      description:String(match.description || "").replace(/<[^>]*>/g," ").replace(/\\s+/g," ").trim(),
       coverUrl:match.coverUrl || "", isbn:match.isbn || "", pageCount:match.pageCount || ""
     };
     localStorage.setItem(cacheKey, JSON.stringify(metadata));
