@@ -497,8 +497,19 @@ async function findOnlineBookMetadata(title, author) {
 
     // Open Library: lấy cả kết quả không có bìa để đối chiếu, nhưng không dừng ở đó.
     try {
-      const data = await getJson(`https://openlibrary.org/search.json?q=${encodeURIComponent(title + " " + author)}&fields=key,title,author_name,first_publish_year,publisher,first_sentence,number_of_pages_median,isbn,cover_i&limit=20`);
-      (data.docs || []).forEach(doc => {
+      const fields = "key,title,author_name,first_publish_year,publisher,first_sentence,number_of_pages_median,isbn,cover_i";
+      const queries = [
+        `https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&fields=${fields}&limit=50`,
+        `https://openlibrary.org/search.json?q=${encodeURIComponent(title)}&fields=${fields}&limit=50`,
+        `https://openlibrary.org/search.json?q=${encodeURIComponent(title + " " + author)}&fields=${fields}&limit=30`
+      ];
+      const seenOpenLibrary = new Set();
+      for (const url of queries) {
+        const data = await getJson(url);
+        (data.docs || []).forEach(doc => {
+          const identity = doc.key || (doc.title + "|" + (doc.author_name || []).join("|"));
+          if (seenOpenLibrary.has(identity)) return;
+          seenOpenLibrary.add(identity);
         if (!doc.cover_i) return;
         const item = {
           source:"Open Library", externalId:doc.key || "", title:doc.title,
@@ -510,13 +521,14 @@ async function findOnlineBookMetadata(title, author) {
           isbn:doc.isbn?.[0] || ""
         };
         item.score = score(item.title,item.authors);
-        if (item.score >= 0.62) candidates.push(item);
-      });
+          if (item.score >= 0.48) candidates.push(item);
+        });
+      }
     } catch (_) {}
 
     // Google Books: vẫn kiểm tra ngay cả khi Open Library đã tìm thấy mô tả.
     try {
-      const data = await getJson(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent("intitle:" + title + " inauthor:" + author)}&maxResults=20`);
+      const data = await getJson(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent("intitle:" + title)}&maxResults=40`);
       (data.items || []).forEach(item => {
         const info = item.volumeInfo || {};
         const ids = info.industryIdentifiers || [];
