@@ -468,7 +468,7 @@ async function findOnlineBookMetadata(title, author) {
   if (cached) {
     try {
       const parsed = JSON.parse(cached);
-      if (!parsed?.notFound) return parsed;
+      if (!parsed?.notFound && parsed.coverUrl) return parsed;
       localStorage.removeItem(cacheKey);
     } catch (_) { localStorage.removeItem(cacheKey); }
   }
