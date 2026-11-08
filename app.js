@@ -556,9 +556,23 @@ async function findOnlineBookMetadata(title, author) {
       });
     } catch (_) {}
 
-    // Ưu tiên kết quả khớp tên/tác giả VÀ có ảnh; tránh dừng ở bản ghi chỉ có mô tả.
+    // Không chỉ tin rằng API có cover_i/thumbnail: kiểm tra ảnh thực sự tải được.
+    // Nếu bìa của nguồn đầu tiên lỗi, tiếp tục thử các nguồn còn lại.
     candidates.sort((a,b) => b.score - a.score);
-    const match = candidates.find(x => x.coverUrl) || null;
+    const imageWorks = url => new Promise(resolve => {
+      if (!url) return resolve(false);
+      const probe = new Image();
+      probe.onload = () => resolve(probe.naturalWidth > 30 && probe.naturalHeight > 30);
+      probe.onerror = () => resolve(false);
+      probe.src = url;
+    });
+    let match = null;
+    for (const candidate of candidates) {
+      if (candidate.coverUrl && await imageWorks(candidate.coverUrl)) {
+        match = candidate;
+        break;
+      }
+    }
     if (!match) {
       localStorage.setItem(cacheKey, JSON.stringify({notFound:true, checkedAt:Date.now()}));
       return null;
