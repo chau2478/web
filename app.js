@@ -565,37 +565,71 @@ async function loadRealBookCovers(root = document) {
     if (img.dataset.coverLoaded === "1") continue;
     img.dataset.coverLoaded = "1";
     const bookId = Number(img.dataset.bookId || 0);
+    const title = img.dataset.bookTitle || "";
+    const author = img.dataset.bookAuthor || "";
+    const fallback = fallbackCoverForBook({title});
     const current = getData().books.find(b => b.id === bookId);
-    const fallback = fallbackCoverForBook(current || { title: img.dataset.bookTitle || "" });
-    img.dataset.fallbackCover = fallback;
+
+    // Tải thử một URL; nếu URL cũ đã bị xóa/hỏng thì trả về false để tìm nguồn khác.
+    const tryImage = url => new Promise(resolve => {
+      if (!url) return resolve(false);
+      const probe = new Image();
+      probe.onload = () => { img.src = url; resolve(true); };
+      probe.onerror = () => resolve(false);
+      probe.src = url;
+    });
+
     img.onerror = () => {
-      if (img.dataset.fallbackApplied === "1") return;
-      img.dataset.fallbackApplied = "1";
-      img.src = img.dataset.fallbackCover || "images/cover-loading.svg";
+      // Không để ảnh hỏng lặp vô hạn; placeholder là SVG nhúng, không cần file trong repo.
+      img.onerror = null;
+      img.src = fallback;
     };
-    if (current && current.coverUrl) {
-      img.src = current.coverUrl;
-      continue;
+
+    // Thử URL đã lưu trước, nhưng không giữ lại đường dẫn ảnh cục bộ cũ.
+    let savedUrl = current?.coverUrl || "";
+    if (savedUrl && !/^https?:\/\//i.test(savedUrl) && !savedUrl.startsWith("data:image/")) {
+      savedUrl = "";
+      if (current) {
+        const data = getData();
+        const book = data.books.find(b => b.id === bookId);
+        if (book) { book.coverUrl = ""; saveData(data); }
+      }
     }
-    const title = img.dataset.bookTitle || "", author = img.dataset.bookAuthor || "";
+    if (savedUrl && await tryImage(savedUrl)) continue;
+
+    // URL đã lưu bị lỗi: xóa để lần sau không tiếp tục ưu tiên ảnh hỏng.
+    if (current && current.coverUrl) {
+      const data = getData();
+      const book = data.books.find(b => b.id === bookId);
+      if (book) { book.coverUrl = ""; saveData(data); }
+    }
+
     try {
       const metadata = await findOnlineBookMetadata(title, author);
       if (!metadata) { img.src = fallback; continue; }
-      if (metadata.coverUrl) {
-        img.src = metadata.coverUrl;
-        img.dataset.fallbackApplied = "0";
-      } else { img.src = fallback; }
+
+      const onlineCover = metadata.coverUrl || "";
+      if (onlineCover && await tryImage(onlineCover)) {
+        if (bookId) {
+          const data = getData();
+          const book = data.books.find(b => b.id === bookId);
+          if (book) book.coverUrl = onlineCover;
+          saveData(data);
+        }
+      } else {
+        img.src = fallback;
+      }
+
       if (bookId) {
         const data = getData();
         const book = data.books.find(b => b.id === bookId);
         if (book) {
-          if (metadata.coverUrl) book.coverUrl = metadata.coverUrl;
           if (metadata.description) book.description = metadata.description;
           if (metadata.publisher) book.publisher = metadata.publisher;
           if (metadata.isbn) book.isbn = metadata.isbn;
           if (metadata.pageCount) book.pageCount = metadata.pageCount;
           if (metadata.year && !book.year) book.year = Number(metadata.year) || book.year;
-          book.metadataSource = metadata.source;
+          if (metadata.source) book.metadataSource = metadata.source;
           saveData(data);
           const descriptionEl = document.querySelector(`[data-book-description="${bookId}"]`);
           if (descriptionEl && metadata.description) descriptionEl.textContent = metadata.description;
@@ -606,7 +640,9 @@ async function loadRealBookCovers(root = document) {
           if (isbnEl && metadata.isbn) isbnEl.textContent = metadata.isbn;
         }
       }
-    } catch (_) { img.src = fallback; }
+    } catch (_) {
+      img.src = fallback;
+    }
   }
 }
 
