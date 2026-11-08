@@ -64,6 +64,23 @@
           <button type="submit">Tìm kiếm</button>
         </div>
       </form>
+      <section class="online-search-panel" aria-labelledby="onlineSearchTitle">
+        <div class="online-search-heading">
+          <div>
+            <p class="online-kicker">KẾT NỐI THƯ VIỆN TRỰC TUYẾN</p>
+            <h2 id="onlineSearchTitle">Tìm và bổ sung sách trực tuyến</h2>
+            <p class="hint">Tìm theo tên sách, tác giả hoặc ISBN. Chọn sách phù hợp để thêm vào thư viện.</p>
+          </div>
+          <span class="online-book-icon" aria-hidden="true">🌐📚</span>
+        </div>
+        <form id="onlineSearchForm" class="online-search-form">
+          <input id="onlineKeyword" type="search" placeholder="Ví dụ: Nhà giả kim, Nguyễn Nhật Ánh hoặc ISBN..." required />
+          <button type="submit" id="onlineSearchButton">Tìm sách trực tuyến</button>
+        </form>
+        <p id="onlineSearchMessage" class="online-search-message" role="status" aria-live="polite"></p>
+        <div id="onlineBookResults" class="online-book-results"></div>
+      </section>
+
       <section id="adminArea" class="form-box hidden">
         <h2 id="formTitle">Thêm sách</h2>
         <form id="bookForm">
@@ -98,5 +115,7 @@
       </div>
     </footer>
     <script src="app.js"></script>
+    <script src="loan.js"></script>
+    <script src="book.js"></script>
   </body>
 </html>

@@ -46,3 +46,33 @@
 .filter-clear:hover{background:#555d65;}
 .search-actions{margin-top:12px;}
 @media(max-width:600px){.book-filter-panel{align-items:stretch;gap:12px;padding:14px;}.filter-field{width:100%;}.filter-clear{align-self:flex-start;}}
+
+
+/* Tim kiem va them sach tu Google Books */
+.online-search-panel{background:linear-gradient(135deg,#fff,#fff0f6);border:1px solid #efc9da;border-radius:16px;padding:22px;margin:24px 0;box-shadow:0 5px 18px #6927440b;}
+.online-search-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;}
+.online-search-heading h2{color:#bd3478;margin:2px 0 4px;font-size:23px;}
+.online-kicker{font-size:11px;font-weight:800;letter-spacing:1.5px;color:#b83b76;margin:0;}
+.online-book-icon{font-size:36px;}
+.online-search-form{display:flex;gap:10px;margin-top:14px;}
+.online-search-form input{flex:1;min-width:0;}
+.online-search-form button{white-space:nowrap;}
+.online-search-message{min-height:22px;color:#965071;font-size:13px;margin:10px 0;}
+.online-book-results{display:grid;gap:13px;margin-top:10px;}
+.online-book-card{display:flex;gap:16px;padding:14px;background:#fff;border:1px solid #f0d2df;border-radius:12px;min-width:0;}
+.online-cover-wrap{width:105px;min-width:105px;height:150px;display:grid;place-items:center;background:#fff7fa;border-radius:7px;overflow:hidden;}
+.online-cover-wrap img{width:100%;height:100%;object-fit:contain;}
+.online-no-cover{padding:8px;text-align:center;color:#a77b90;font-size:12px;}
+.online-book-info{min-width:0;flex:1;}
+.online-book-info h3{color:#a92566;margin:0 0 6px;font-size:17px;}
+.online-book-info p{font-size:13px;margin:4px 0;}
+.online-description{color:#80566b;}
+.online-category-label{font-size:12px;margin:8px 0 4px;}
+.online-category{max-width:260px;padding:7px 10px;font-size:13px;}
+.online-add-button{display:block;margin-top:9px;}
+.online-search-form button:disabled,.online-add-button:disabled{opacity:.65;cursor:default;}
+@media(max-width:600px){.online-search-panel{padding:15px;}.online-search-form{flex-direction:column;}.online-search-form button{align-self:flex-start;}.online-book-card{gap:11px;padding:10px;}.online-cover-wrap{width:82px;min-width:82px;height:125px;}.online-book-info h3{font-size:15px;}}
+
+/* Thông tin sách lấy từ thư viện trực tuyến */
+.book-description{color:#76586a;font-size:.92rem;line-height:1.5;margin:.35rem 0 .6rem}
+.online-admin-note{color:#9a5277;font-size:.9rem;margin-top:.7rem;padding:.55rem .7rem;background:#fff0f6;border-radius:8px}
