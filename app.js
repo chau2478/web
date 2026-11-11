@@ -728,7 +728,17 @@ function renderHeader() {
     area.innerHTML = '<a href="login.html">Đăng nhập</a>';
     return;
   }
-  area.innerHTML = `<button class="account-name" id="accountToggle">${escapeHTML(user.name)} ▾</button><div class="account-menu"><a href="account.html">Thông tin tài khoản</a><a href="loan.html">Sách đang mượn</a><a href="#" id="logoutButton">Đăng xuất</a></div>`;
+  const adminLoanLink = isAdmin() ? '<a href="loan.html">Quản lý mượn / trả</a>' : "";
+  const nav = area.closest(".navbar");
+  if (nav) {
+    nav.querySelectorAll('a[href="loan.html"]').forEach((link) => link.remove());
+    if (isAdmin() && !nav.querySelector('a[data-admin-loans="true"]')) {
+      const link = document.createElement("a"); link.href = "loan.html";
+      link.dataset.adminLoans = "true"; link.textContent = "Quản lý mượn / trả";
+      nav.insertBefore(link, area);
+    }
+  }
+  area.innerHTML = `<button class="account-name" id="accountToggle">${escapeHTML(user.name)} ▾</button><div class="account-menu"><a href="account.html">Thông tin tài khoản</a><a href="account.html#myLoans">Sách đang mượn</a>${adminLoanLink}<a href="#" id="logoutButton">Đăng xuất</a></div>`;
   document.getElementById("accountToggle").onclick = () =>
     area.classList.toggle("open");
   document.getElementById("logoutButton").onclick = (e) => {
@@ -821,16 +831,7 @@ function initAccount() {
       .map((f) => d.books.find((b) => b.id === f.bookId))
       .filter(Boolean),
     borrowed = loans.filter((l) => l.status === "borrowed");
-  el.innerHTML = `<section class="info-card account-info"><h2>Thông tin cá nhân</h2><p><b>Họ và tên:</b> ${escapeHTML(u.name)}</p><p><b>Tên đăng nhập:</b> ${escapeHTML(u.username)}</p><p><b>Vai trò:</b> ${u.role === "admin" ? "Quản trị viên" : "Người dùng"}</p><p><b>Tổng lượt mượn:</b> ${loans.length}</p><p><b>Sách đang mượn:</b> ${borrowed.length}</p></section><div class="account-grid"><section><h2 class="section-title">📖 Sách đang mượn</h2>${
-    borrowed.length
-      ? `<div class="book-list">${borrowed
-          .map((l) => {
-            const b = d.books.find((x) => x.id === l.bookId);
-            return b ? bookCard(b) : "";
-          })
-          .join("")}</div>`
-      : '<div class="empty">Cậu chưa mượn cuốn sách nào.</div>'
-  }</section><section><h2 class="section-title">💗 Sách yêu thích</h2>${favorites.length ? `<div class="book-list">${favorites.map((b) => bookCard(b)).join("")}</div>` : '<div class="empty">Chưa có sách yêu thích. Hãy chọn biểu tượng ♡ ở sách cậu thích nhé.</div>'}</section></div>`;
+  el.innerHTML = `<section class="info-card account-info"><h2>Thông tin cá nhân</h2><p><b>Họ và tên:</b> ${escapeHTML(u.name)}</p><p><b>Tên đăng nhập:</b> ${escapeHTML(u.username)}</p><p><b>Vai trò:</b> ${u.role === "admin" ? "Quản trị viên" : "Người dùng"}</p><p><b>Tổng lượt mượn:</b> ${loans.length}</p><p><b>Sách đang mượn:</b> ${borrowed.length}</p></section><div class="account-grid"><section id="myLoans"><h2 class="section-title">📖 Sách đang mượn và trạng thái của tôi</h2>${loans.length ? `<div class="table-wrap"><table><thead><tr><th>Tên sách</th><th>Ngày mượn</th><th>Hạn trả</th><th>Ngày trả</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>${loans.map((l) => { const b = d.books.find((x) => x.id === l.bookId); return `<tr><td>${escapeHTML(b?.title || "Sách đã xóa")}</td><td>${escapeHTML(l.borrowDate || "—")}</td><td>${escapeHTML(l.dueDate || "—")}</td><td>${escapeHTML(l.returnDate || "—")}</td><td>${l.status === "returned" ? "Đã trả" : "Đang mượn"}</td><td>${l.status === "borrowed" ? `<button onclick="returnBook(${l.id})">Trả sách</button>` : "—"}</td></tr>`; }).join("")}</tbody></table></div>` : '<div class="empty">Cậu chưa có lịch sử mượn sách nào.</div>'}</section><section><h2 class="section-title">💗 Sách yêu thích</h2>${favorites.length ? `<div class="book-list">${favorites.map((b) => bookCard(b)).join("")}</div>` : '<div class="empty">Chưa có sách yêu thích. Hãy chọn biểu tượng ♡ ở sách cậu thích nhé.</div>'}</section></div>`
   loadRealBookCovers(el);
 }
 document.addEventListener("DOMContentLoaded", () => {
