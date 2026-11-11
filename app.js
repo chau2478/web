@@ -724,21 +724,22 @@ function renderHeader() {
   const area = document.getElementById("accountArea");
   if (!area) return;
   const user = getUser();
-  if (!user) {
-    area.innerHTML = '<a href="login.html">Đăng nhập</a>';
-    return;
-  }
-  const adminLoanLink = isAdmin() ? '<a href="loan.html">Quản lý mượn / trả</a>' : "";
   const nav = area.closest(".navbar");
   if (nav) {
     nav.querySelectorAll('a[href="loan.html"]').forEach((link) => link.remove());
     if (isAdmin() && !nav.querySelector('a[data-admin-loans="true"]')) {
-      const link = document.createElement("a"); link.href = "loan.html";
-      link.dataset.adminLoans = "true"; link.textContent = "Quản lý mượn / trả";
+      const link = document.createElement("a");
+      link.href = "loan.html";
+      link.dataset.adminLoans = "true";
+      link.textContent = "Mượn / trả";
       nav.insertBefore(link, area);
     }
   }
-  area.innerHTML = `<button class="account-name" id="accountToggle">${escapeHTML(user.name)} ▾</button><div class="account-menu"><a href="account.html">Thông tin tài khoản</a><a href="account.html#myLoans">Sách đang mượn</a>${adminLoanLink}<a href="#" id="logoutButton">Đăng xuất</a></div>`;
+  if (!user) {
+    area.innerHTML = '<a href="login.html">Đăng nhập</a>';
+    return;
+  }
+  area.innerHTML = `<button class="account-name" id="accountToggle">${escapeHTML(user.name)} ▾</button><div class="account-menu"><a href="account.html">Thông tin tài khoản</a><a href="account.html#myLoans">Sách đang mượn</a><a href="#" id="logoutButton">Đăng xuất</a></div>`;
   document.getElementById("accountToggle").onclick = () =>
     area.classList.toggle("open");
   document.getElementById("logoutButton").onclick = (e) => {
