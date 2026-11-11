@@ -188,28 +188,3 @@
 }
 
 
-/* Che nut "Kham pha sach" duoc in san trong anh banner.
-   Nut Khám phá cua website nam tren lop nay va van bam duoc. */
-.banner::after{
-  content:"";
-  position:absolute;
-  z-index:2;
-  left:8.5%;
-  bottom:0;
-  width:19.5%;
-  height:21%;
-  pointer-events:none;
-  background:linear-gradient(90deg,
-    rgba(238,164,196,.97) 0%,
-    rgba(244,177,204,.97) 55%,
-    rgba(246,190,211,.90) 100%);
-  border-radius:0 18px 0 0;
-}
-.banner-cta-link{z-index:3;}
-@media(max-width:600px){
-  .banner::after{
-    left:7%;
-    width:42%;
-    height:24%;
-  }
-}
