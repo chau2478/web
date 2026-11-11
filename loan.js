@@ -66,7 +66,7 @@ function initLoans() {
   if (msg) msg.classList.add("hidden");
   function render() {
     const d = getData(),
-      loans = d.loans;
+      loans = d.loans.filter((l) => l.status === "borrowed");
     if (!loans.length) {
       list.innerHTML = '<div class="empty">Chưa có lịch sử mượn sách.</div>';
       return;
