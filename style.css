@@ -178,3 +178,11 @@
     font-size:13px;
   }
 }
+
+
+/* Can doi giao dien khi Chrome Zoom 67% tren man hinh desktop 1366px */
+@media screen and (min-width:1800px) and (min-height:700px){
+  body{
+    zoom:1.49;
+  }
+}
