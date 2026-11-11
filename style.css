@@ -76,3 +76,26 @@
 /* Thông tin sách lấy từ thư viện trực tuyến */
 .book-description{color:#76586a;font-size:.92rem;line-height:1.5;margin:.35rem 0 .6rem}
 .online-admin-note{color:#9a5277;font-size:.9rem;margin-top:.7rem;padding:.55rem .7rem;background:#fff0f6;border-radius:8px}
+
+
+/* Khôi phục nút Khám phá trên banner */
+.banner-cta-link{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#d72c82;
+  border:2px solid #fff;
+  box-shadow:0 4px 14px #70234455;
+  color:#fff;
+  font-size:clamp(13px,1.35vw,17px);
+  font-weight:800;
+  letter-spacing:.3px;
+  text-align:center;
+  text-decoration:none;
+  transition:transform .2s ease,background .2s ease;
+}
+.banner-cta-link::before{content:"Khám phá";}
+.banner-cta-link:hover{background:#a92566;color:#fff;transform:translateY(-2px);}
+@media(max-width:600px){
+  .banner-cta-link{font-size:13px;border-width:1.5px;}
+}
