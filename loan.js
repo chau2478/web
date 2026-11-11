@@ -59,24 +59,23 @@ function initLoans() {
   if (!list) return;
   const user = getUser(),
     msg = document.getElementById("loanMessage");
-  if (!user) {
-    msg.classList.remove("hidden");
-    list.innerHTML = "";
-    return;
+  if (!user || !isAdmin()) {
+    if (msg) { msg.classList.remove("hidden"); msg.textContent = user ? "Trang quản lý mượn / trả chỉ dành cho quản trị viên." : "Vui lòng đăng nhập bằng tài khoản quản trị viên để xem trang này."; }
+    list.innerHTML = ""; return;
   }
-  msg.classList.add("hidden");
+  if (msg) msg.classList.add("hidden");
   function render() {
     const d = getData(),
-      loans = d.loans.filter((l) => isAdmin() || l.userId === user.id);
+      loans = d.loans;
     if (!loans.length) {
       list.innerHTML = '<div class="empty">Chưa có lịch sử mượn sách.</div>';
       return;
     }
-    list.innerHTML = `<table><thead><tr><th>Tên sách</th>${isAdmin() ? "<th>Tài khoản</th>" : ""}<th>Ngày mượn</th><th>Hạn trả</th><th>Ngày trả</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>${loans
+    list.innerHTML = `<table><thead><tr><th>Tên sách</th><th>Tài khoản</th><th>Ngày mượn</th><th>Hạn trả</th><th>Ngày trả</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>${loans
       .map((l) => {
         const b = d.books.find((x) => x.id === l.bookId),
           owner = d.users.find((x) => x.id === l.userId);
-        return `<tr><td><a href="book-detail.html?id=${l.bookId}">${escapeHTML(b?.title || "Sách đã xóa")}</a></td>${isAdmin() ? `<td>${escapeHTML(owner?.name || "")}</td>` : ""}<td>${escapeHTML(l.borrowDate)}</td><td>${escapeHTML(l.dueDate)}</td><td>${escapeHTML(l.returnDate || "—")}</td><td>${l.status === "returned" ? "Đã trả" : "Đang mượn"}</td><td>${l.status === "borrowed" ? `<button onclick="returnBook(${l.id})">Trả sách</button>` : "—"}</td></tr>`;
+        return `<tr><td><a href="book-detail.html?id=${l.bookId}">${escapeHTML(b?.title || "Sách đã xóa")}</a></td><td>${escapeHTML(owner?.name || "Không rõ")}</td><td>${escapeHTML(l.borrowDate)}</td><td>${escapeHTML(l.dueDate)}</td><td>${escapeHTML(l.returnDate || "—")}</td><td>${l.status === "returned" ? "Đã trả" : "Đang mượn"}</td><td>${l.status === "borrowed" ? `<button onclick="returnBook(${l.id})">Trả sách</button>` : "—"}</td></tr>`;
       })
       .join("")}</tbody></table>`;
   }
